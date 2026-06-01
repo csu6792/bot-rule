@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>正修科技大學創意軌道機器人競賽 - 官方規範 | CSU Creative Track Robot Competition - Official Rules</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
@@ -78,62 +79,23 @@
         .confetti { animation: floating-confetti 2s infinite linear; }
 
         /* =========================================
-           🎁 動態禮物盒與碎花噴發 CSS 動畫核心
+           🎁 新版：溫和漂浮禮物盒 & JS 觸發開蓋 CSS
            ========================================= */
-        @keyframes gift-bounce {
-            0%, 70%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
-            75% { transform: translateY(3px) scale(1.05, 0.95) rotate(0deg); }
-            80% { transform: translateY(-8px) scale(0.95, 1.05) rotate(-3deg); }
-            85% { transform: translateY(0) scale(1.02, 0.98) rotate(3deg); }
-            90% { transform: translateY(-2px) scale(0.99, 1.01) rotate(-1deg); }
-            95% { transform: translateY(0) scale(1) rotate(0deg); }
-        }
-        @keyframes lid-hop {
-            0%, 70%, 100% { transform: translateY(0) rotate(0deg); }
-            75% { transform: translateY(1px) rotate(0deg); }
-            80% { transform: translateY(-12px) rotate(-8deg); }
-            85% { transform: translateY(-2px) rotate(4deg); }
-            90% { transform: translateY(-4px) rotate(-1deg); }
-            95% { transform: translateY(0) rotate(0deg); }
-        }
-        @keyframes confetti-explode {
-            0%, 75% { 
-                opacity: 0; 
-                transform: translate(0, 0) rotate(0deg) scale(0); 
-            }
-            78% { 
-                opacity: 1; 
-                transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.2); 
-            }
-            88% { 
-                opacity: 0.8; 
-                transform: translate(var(--tx), calc(var(--ty) + 60px)) rotate(calc(var(--rot) + 60deg)) scale(1); 
-            }
-            95% { 
-                opacity: 0; 
-                transform: translate(var(--tx), calc(var(--ty) + 120px)) rotate(calc(var(--rot) + 120deg)) scale(0.6); 
-            }
-            100% { 
-                opacity: 0; 
-            }
+        @keyframes gentle-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
         }
         .gift-container {
-            animation: gift-bounce 3s ease-in-out infinite;
-            transform-origin: 32px 52px;
+            animation: gentle-float 3s ease-in-out infinite;
         }
-        .lid-group {
-            animation: lid-hop 3s ease-in-out infinite;
+        #gift-lid {
             transform-origin: 32px 24px;
+            /* 讓蓋子打開的瞬間有 Q 彈感 */
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .confetti-piece {
-            animation: confetti-explode 3s ease-in-out infinite;
-            transform-origin: 32px 32px;
-        }
-        /* 滑鼠移入標題區塊時，禮物盒開蓋與跳動加速，碎花噴發頻率變快 */
-        .reward-gift-trigger:hover .gift-container,
-        .reward-gift-trigger:hover .lid-group,
-        .reward-gift-trigger:hover .confetti-piece {
-            animation-duration: 1.5s;
+        /* 當 JS 加上 pop-open class 時，蓋子噴開 */
+        #gift-lid.pop-open {
+            transform: translateY(-25px) rotate(-15deg) scale(1.15);
         }
     </style>
 </head>
@@ -455,49 +417,19 @@
 
         <section class="mb-20">
             <div class="bg-white rounded-[3rem] border-4 border-slate-100 p-10 shadow-xl relative overflow-hidden">
-                <div class="absolute -left-20 -top-20 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
-                <div class="flex flex-col items-center mb-16 text-center">
+                <canvas id="confetti-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></canvas>
+                
+                <div class="absolute -left-20 -top-20 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 z-0"></div>
+                
+                <div class="flex flex-col items-center mb-16 text-center relative z-30">
                     
-                    <div class="w-20 h-20 flex items-center justify-center mb-4 reward-gift-trigger transition-transform duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full animated-gift-box" style="overflow: visible;">
+                    <div id="gift-box-trigger" class="w-24 h-24 flex items-center justify-center mb-4 cursor-pointer hover:scale-110 transition-transform duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full drop-shadow-xl" style="overflow: visible;">
                             <g class="gift-container">
                                 <rect x="16" y="28" width="32" height="24" rx="3" fill="#FF4757" />
                                 <rect x="29" y="28" width="6" height="24" fill="#FFA502" />
                         
-                                <g class="confetti-group">
-                                    <rect x="30" y="24" width="4" height="6" fill="#FF3F34" class="confetti-piece" style="--tx: -350px; --ty: -250px; --rot: 45deg;" />
-                                    <circle cx="32" cy="24" r="3" fill="#0BE881" class="confetti-piece" style="--tx: -250px; --ty: -300px; --rot: 90deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#4BCFFA" class="confetti-piece" style="--tx: -150px; --ty: -350px; --rot: 135deg;" />
-                                    <rect x="30" y="24" width="5" height="5" fill="#FFC048" class="confetti-piece" style="--tx: -50px; --ty: -380px; --rot: 200deg;" />
-                                    <circle cx="32" cy="24" r="2.5" fill="#F53B57" class="confetti-piece" style="--tx: 50px; --ty: -360px; --rot: 60deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#575FCF" class="confetti-piece" style="--tx: 150px; --ty: -320px; --rot: 80deg;" />
-                                    <rect x="30" y="24" width="4" height="6" fill="#FFD32A" class="confetti-piece" style="--tx: 250px; --ty: -280px; --rot: 120deg;" />
-                                    <circle cx="32" cy="24" r="3" fill="#FF3F34" class="confetti-piece" style="--tx: 350px; --ty: -220px; --rot: 45deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#0BE881" class="confetti-piece" style="--tx: -400px; --ty: -150px; --rot: 200deg;" />
-                                    <rect x="30" y="24" width="6" height="4" fill="#4BCFFA" class="confetti-piece" style="--tx: -300px; --ty: -180px; --rot: 30deg;" />
-                                    <circle cx="32" cy="24" r="2" fill="#FFC048" class="confetti-piece" style="--tx: -200px; --ty: -200px; --rot: 70deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#F53B57" class="confetti-piece" style="--tx: -100px; --ty: -240px; --rot: 150deg;" />
-                                    <rect x="30" y="24" width="5" height="5" fill="#575FCF" class="confetti-piece" style="--tx: 100px; --ty: -220px; --rot: 10deg;" />
-                                    <circle cx="32" cy="24" r="3" fill="#FFD32A" class="confetti-piece" style="--tx: 200px; --ty: -180px; --rot: 240deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#FF3F34" class="confetti-piece" style="--tx: 300px; --ty: -120px; --rot: 50deg;" />
-                                    <rect x="30" y="24" width="4" height="8" fill="#0BE881" class="confetti-piece" style="--tx: 400px; --ty: -100px; --rot: 130deg;" />
-                                    <circle cx="32" cy="24" r="4" fill="#4BCFFA" class="confetti-piece" style="--tx: -450px; --ty: -50px; --rot: 90deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#FFC048" class="confetti-piece" style="--tx: -350px; --ty: -80px; --rot: 300deg;" />
-                                    <rect x="30" y="24" width="4" height="4" fill="#F53B57" class="confetti-piece" style="--tx: -250px; --ty: -100px; --rot: 170deg;" />
-                                    <circle cx="32" cy="24" r="2.5" fill="#575FCF" class="confetti-piece" style="--tx: -150px; --ty: -120px; --rot: 210deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#FFD32A" class="confetti-piece" style="--tx: 150px; --ty: -100px; --rot: 320deg;" />
-                                    <rect x="30" y="24" width="6" height="5" fill="#FF3F34" class="confetti-piece" style="--tx: 250px; --ty: -60px; --rot: 20deg;" />
-                                    <circle cx="32" cy="24" r="3" fill="#0BE881" class="confetti-piece" style="--tx: 350px; --ty: -30px; --rot: 110deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#4BCFFA" class="confetti-piece" style="--tx: 450px; --ty: 0px; --rot: 80deg;" />
-                                    <rect x="30" y="24" width="4" height="6" fill="#F53B57" class="confetti-piece" style="--tx: -280px; --ty: 40px; --rot: 45deg;" />
-                                    <circle cx="32" cy="24" r="3" fill="#575FCF" class="confetti-piece" style="--tx: -180px; --ty: 60px; --rot: 140deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#FFD32A" class="confetti-piece" style="--tx: -80px; --ty: 80px; --rot: 270deg;" />
-                                    <rect x="30" y="24" width="5" height="5" fill="#FF3F34" class="confetti-piece" style="--tx: 80px; --ty: 80px; --rot: 15deg;" />
-                                    <circle cx="32" cy="24" r="2" fill="#0BE881" class="confetti-piece" style="--tx: 180px; --ty: 60px; --rot: 30deg;" />
-                                    <polygon points="32,21 35,26 29,26" fill="#4BCFFA" class="confetti-piece" style="--tx: 280px; --ty: 40px; --rot: 190deg;" />
-                                </g>
-
-                                <g class="lid-group">
+                                <g id="gift-lid" class="lid-group">
                                     <path d="M32 20 C24 10 16 14 28 20 Z" fill="#FFA502" />
                                     <path d="M32 20 C40 10 48 14 36 20 Z" fill="#FFA502" />
                                     <rect x="12" y="20" width="40" height="8" rx="2" fill="#FF6B81" />
@@ -518,7 +450,7 @@
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative z-30">
                     <div class="award-card bg-gradient-to-br from-amber-400 to-orange-500 rounded-[2.5rem] p-8 text-center shadow-xl relative overflow-hidden group border-b-8 border-orange-600">
                         <div class="shimmer-effect absolute inset-0"></div>
                         <div class="confetti absolute top-4 left-1/4 w-2 h-2 bg-white rounded-full"></div>
@@ -605,15 +537,14 @@
 
     <script>
         /**
+         * =============================================
          * 自動捲動系統核心邏輯
-         * 1. 偵測頁面高度並以固定速度自動向下
-         * 2. 觸底後停頓並平滑回頂部，達成循環
-         * 3. 智慧感應：偵測滑鼠滾輪或觸碰動作，暫停自動捲動 3 秒
+         * =============================================
          */
         (function() {
-            let scrollSpeed = 0.5;      // 捲動速度 (像素/幀)
-            let scrollPos = 0;          // 當前存儲的捲動位置
-            let isAutoScrolling = true; // 自動捲動開關
+            let scrollSpeed = 0.5;      
+            let scrollPos = 0;          
+            let isAutoScrolling = true; 
             let interactionTimer = null;
 
             function startAutoScroll() {
@@ -621,16 +552,12 @@
                     scrollPos += scrollSpeed;
                     window.scrollTo(0, scrollPos);
 
-                    // 檢查是否捲動到底部
                     const hasReachedBottom = (window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 2;
-                    
                     if (hasReachedBottom) {
                         isAutoScrolling = false;
-                        // 觸底停頓一下，展現獎勵內容後回頂
                         setTimeout(() => {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             scrollPos = 0;
-                            // 等待回到頂部動畫完成 (約1.5秒) 後再重啟
                             setTimeout(() => { isAutoScrolling = true; }, 2000);
                         }, 3000);
                     }
@@ -638,27 +565,74 @@
                 requestAnimationFrame(startAutoScroll);
             }
 
-            // 處理手動干預：暫停自動捲動
             function handleUserInteraction() {
                 isAutoScrolling = false;
                 clearTimeout(interactionTimer);
-                
-                // 停止任何手動操作 3.5 秒後，重新從當前位置開始捲動
                 interactionTimer = setTimeout(() => {
                     scrollPos = window.pageYOffset;
                     isAutoScrolling = true;
                 }, 3500);
             }
 
-            // 監聽滾輪、觸碰與鍵盤
             window.addEventListener('wheel', handleUserInteraction, { passive: true });
             window.addEventListener('touchstart', handleUserInteraction, { passive: true });
             window.addEventListener('keydown', handleUserInteraction);
 
-            // 啟動循環
             requestAnimationFrame(startAutoScroll);
-            
-            console.log("Auto-scroll system initialized.");
+        })();
+
+        /**
+         * =============================================
+         * 🎁 物理紙花 (Canvas Confetti) 系統與動畫聯動
+         * =============================================
+         */
+        (function() {
+            // 綁定專屬的畫布 (確保紙花只在獎勵區塊內噴發)
+            const canvas = document.getElementById('confetti-canvas');
+            const myConfetti = confetti.create(canvas, {
+                resize: true,
+                useWorker: true
+            });
+
+            const giftBox = document.getElementById('gift-box-trigger');
+            const lid = document.getElementById('gift-lid');
+
+            // 發射紙花與開蓋的邏輯
+            function popGiftBox() {
+                // 如果蓋子已經是打開的狀態，就不重複觸發
+                if (lid.classList.contains('pop-open')) return;
+
+                // 1. 讓 CSS 動畫將蓋子彈開
+                lid.classList.add('pop-open');
+
+                // 2. 引爆超真實的物理紙花
+                myConfetti({
+                    particleCount: 150,     // 紙花數量
+                    spread: 120,            // 噴發角度 (放射狀)
+                    startVelocity: 45,      // 噴發初速
+                    gravity: 0.9,           // 重力下墜速度
+                    origin: { y: 0.35 },    // 從畫布的靠上位置噴出 (對應禮物盒)
+                    colors: ['#FF4757', '#FFA502', '#2ED573', '#1E90FF', '#FF6B81', '#FFD32A', '#0BE881'], // 彩色
+                    ticks: 300              // 留存時間
+                });
+
+                // 3. 過 1.5 秒後把蓋子蓋回去，準備下一次噴發
+                setTimeout(() => {
+                    lid.classList.remove('pop-open');
+                }, 1500);
+            }
+
+            // 事件 1：當滑鼠移到禮物盒上，立刻開蓋噴花！
+            giftBox.addEventListener('mouseenter', popGiftBox);
+
+            // 事件 2：系統每隔 4 秒，自動檢查並噴發一次 (增添派對感)
+            setInterval(() => {
+                // 只有當這個區域出現在螢幕畫面中時，才執行噴發 (節省效能)
+                const rect = canvas.getBoundingClientRect();
+                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                    popGiftBox();
+                }
+            }, 4000);
         })();
     </script>
 </body>
